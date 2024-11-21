@@ -12,7 +12,7 @@
 ;;              Aaron Smith <aaron-lua@gelatinous.com>.
 ;;
 ;; URL:         https://immerrr.github.io/lua-mode
-;; Version:     20221027
+;; Version:     20241121
 ;; Package-Requires: ((emacs "24.3"))
 ;;
 ;; This file is NOT part of Emacs.
@@ -1942,7 +1942,13 @@ This function just searches for a `end' at the beginning of a line."
   (mapconcat
    'identity
    '("local loadstring = loadstring or load"
-     "function luamode_loadstring(str, displayname, lineoffset)"
+     "function luamode_loadstring(tmpfile, displayname, lineoffset)"
+     "  local f,e = io.open(tmpfile, 'r')"
+     "  if e then os.remove(tmpfile); error(e); return; end"
+     "  local str, e = f:read('*all')"
+     "  if e then os.remove(tmpfile); error(e); return; end"
+     "  f:close()"
+     "  os.remove(tmpfile)"
      "  if lineoffset > 1 then"
      "    str = string.rep('\\n', lineoffset - 1) .. str"
      "  end"
@@ -2092,13 +2098,17 @@ Otherwise, return START."
   (let* ((lineno (line-number-at-pos start))
          (lua-file (or (buffer-file-name) (buffer-name)))
          (region-str (buffer-substring-no-properties start end))
+         (tmp-file (make-temp-file "luamode-" nil ".tmp"))
          (command
           ;; Print empty line before executing the code so that the first line
           ;; of output doesn't end up on the same line as current prompt.
           (format "print(''); luamode_loadstring(%s, %s, %s);\n"
-                  (lua-make-lua-string region-str)
+                  (lua-make-lua-string tmp-file)
                   (lua-make-lua-string lua-file)
                   lineno)))
+    (with-temp-buffer
+      (insert region-str)
+      (write-file tmp-file))
     (lua-send-string command)
     (when lua-always-show (lua-show-process-buffer))))
 
