@@ -2106,9 +2106,8 @@ Otherwise, return START."
                   (lua-make-lua-string tmp-file)
                   (lua-make-lua-string lua-file)
                   lineno)))
-    (with-temp-buffer
-      (insert region-str)
-      (write-file tmp-file))
+    (with-temp-file tmp-file
+      (insert region-str))
     (lua-send-string command)
     (when lua-always-show (lua-show-process-buffer))))
 
